@@ -6,4 +6,6 @@ public class RestreamState {
     public volatile String lastVideoId = null;
 
     public volatile Process currentProcess = null;
+
+    public volatile String lastError;
 }
