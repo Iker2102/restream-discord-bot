@@ -8,6 +8,7 @@ import restream.RestreamManager;
 import restream.RestreamState;
 import util.Console;
 import util.Env;
+import util.ExponentialBackoff;
 import youtube.YouTubeLiveChecker;
 
 import java.time.LocalTime;
@@ -23,6 +24,10 @@ public class Main {
     private static final String STATUS_PREFIX = "│ ";
 
     private static volatile boolean tickerEnabled = true;
+
+    private static final ExponentialBackoff backoff = new ExponentialBackoff(5_000, 5 * 60_000);
+    private static volatile long nextAllowedStartMs = 0;
+
 
     public static void main(String[] args) throws Exception {
 
@@ -77,26 +82,46 @@ public class Main {
                 state.isSourceLive = live.isLive();
 
                 if (live.isLive()) {
+
                     if (state.lastVideoId == null || !state.lastVideoId.equals(live.videoId())) {
                         state.lastVideoId = live.videoId();
                         logEvent("LIVE detectado: " + live.videoId());
                     }
 
                     if (!state.isRestreaming) {
-                        logEvent("Iniciando restream → YouTube RTMP");
-                        restream.startRestream(live.watchUrl());
+                        long now = System.currentTimeMillis();
+
+                        if (now < nextAllowedStartMs) {
+                            long wait = (nextAllowedStartMs - now) / 1000;
+                        } else {
+                            try {
+                                logEvent("Iniciando restream → YouTube RTMP");
+                                restream.startRestream(live.watchUrl());
+
+                                backoff.reset();
+                                nextAllowedStartMs = 0;
+
+                            } catch (Exception ex) {
+                                long delay = backoff.nextDelayMs();
+                                nextAllowedStartMs = now + delay;
+
+                                logEvent("Fallo arrancando restream (" + backoff.getFailures() + "): "
+                                        + ex.getMessage() + " | reintento en " + (delay / 1000) + "s");
+                            }
+                        }
                     }
 
                 } else {
-                    if (wasLive) logEvent("El canal ha dejado de estar LIVE");
-
                     state.lastVideoId = null;
+                    backoff.reset();
+                    nextAllowedStartMs = 0;
 
                     if (state.isRestreaming) {
                         logEvent("Parando restream (fuente OFF)");
                         restream.stopRestream();
                     }
                 }
+
 
             } catch (Exception e) {
                 logEvent("ERROR en checkLive(): " + e.getMessage());
@@ -111,7 +136,7 @@ public class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 tickerEnabled = false;
-                System.out.println(); // baja de la línea del ticker
+                System.out.println();
                 Console.warn("Cerrando...");
                 try { restream.stopRestream(); } catch (Exception ignored) {}
                 try { jda.shutdownNow(); } catch (Exception ignored) {}
