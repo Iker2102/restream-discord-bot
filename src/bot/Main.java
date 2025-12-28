@@ -31,13 +31,11 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        // Silenciar JDA (para que no rompa tu línea de estado)
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
         System.setProperty("org.slf4j.simpleLogger.log.net.dv8tion", "warn");
         System.setProperty("org.slf4j.simpleLogger.showDateTime", "false");
         System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
 
-        // Cargar .env
         Env env = Env.load(".env");
 
         String discordToken    = env.require("DISCORD_TOKEN");
@@ -147,13 +145,22 @@ public class Main {
 
     private static void renderStatusLine(RestreamState state, int pollSeconds) {
         synchronized (CONSOLE_LOCK) {
+            String bo;
+            long now = System.currentTimeMillis();
             String live = state.isSourceLive ? "ON " : "OFF";
             String rs   = state.isRestreaming ? "ON " : "OFF";
             String vid  = (state.lastVideoId == null ? "-" : state.lastVideoId);
 
+            if (nextAllowedStartMs > now) {
+                long waitSec = Math.max(1, (nextAllowedStartMs - now) / 1000);
+                bo = "Backoff:" + waitSec + "s";
+            } else {
+                bo = "Backoff:-";
+            }
+
             String line = String.format(
-                    "│ %s | Live:%s  Restream:%s  Video:%s  Poll:%ss",
-                    timeNow(), live, rs, vid, pollSeconds
+                    "│ %s | Live:%s  Restream:%s  Video:%s  %s  Poll:%ss",
+                    timeNow(), live, rs, vid, bo, pollSeconds
             );
 
             int pad = Math.max(0, 120 - line.length());
