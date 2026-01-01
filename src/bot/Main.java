@@ -38,11 +38,14 @@ public class Main {
 
         Env env = Env.load(".env");
 
-        String discordToken    = env.require("DISCORD_TOKEN");
-        String ytApiKey        = env.require("YOUTUBE_API_KEY");
-        String channelId       = env.require("YOUTUBE_CHANNEL_ID");
-        String youtubeRtmpUrl  = env.require("YOUTUBE_RTMP_URL");
+        String discordToken = env.require("DISCORD_TOKEN");
+        String ytApiKey = env.require("YOUTUBE_API_KEY");
+        String channelId = env.require("YOUTUBE_CHANNEL_ID");
+        String youtubeRtmpUrl = env.require("YOUTUBE_RTMP_URL");
         String youtubeStreamKey= env.require("YOUTUBE_STREAM_KEY");
+        String notifyUserId = env.require("NOTIFY_DISCORD_USER_ID");
+
+        long notifyUserIdL = Long.parseLong(notifyUserId);
         int pollSeconds        = Integer.parseInt(env.require("POLL_SECONDS"));
 
         if (discordToken == null || ytApiKey == null || channelId == null || youtubeRtmpUrl == null || youtubeStreamKey == null) {
@@ -84,6 +87,8 @@ public class Main {
                     if (state.lastVideoId == null || !state.lastVideoId.equals(live.videoId())) {
                         state.lastVideoId = live.videoId();
                         logEvent("LIVE detectado: " + live.videoId());
+
+                        sendLiveDm(jda, notifyUserIdL, live.watchUrl());
                     }
 
                     if (!state.isRestreaming) {
@@ -177,6 +182,18 @@ public class Main {
             System.out.println("[" + timeNow() + "] " + msg);
         }
     }
+
+    private static void sendLiveDm(JDA jda, long userId, String watchUrl) {
+        jda.retrieveUserById(userId).queue(user -> {
+            user.openPrivateChannel().queue(channel -> {
+                channel.sendMessage(
+                        "🔴 **Directo iniciado**\n" +
+                                watchUrl
+                ).queue();
+            });
+        });
+    }
+
 
 
     private static String timeNow() {
