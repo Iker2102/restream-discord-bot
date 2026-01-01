@@ -44,6 +44,10 @@ public class Main {
         String youtubeRtmpUrl = env.require("YOUTUBE_RTMP_URL");
         String youtubeStreamKey= env.require("YOUTUBE_STREAM_KEY");
         String notifyUserId = env.require("NOTIFY_DISCORD_USER_ID");
+        String targetChannelId = env.require("YOUTUBE_TARGET_CHANNEL_ID");
+
+
+        YouTubeLiveChecker targetChecker = new YouTubeLiveChecker(ytApiKey, targetChannelId);
 
         long notifyUserIdL = Long.parseLong(notifyUserId);
         int pollSeconds        = Integer.parseInt(env.require("POLL_SECONDS"));
