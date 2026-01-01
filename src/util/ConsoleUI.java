@@ -20,9 +20,8 @@ public class ConsoleUI {
             return;
         }
 
-        // Limpia pantalla y vuelve arriba
-        System.out.print(ESC + "2J");   // clear screen
-        System.out.print(ESC + "H");    // cursor home
+        System.out.print(ESC + "2J");
+        System.out.print(ESC + "H");
 
         banner("Restream Bot");
         System.out.println();
@@ -40,7 +39,6 @@ public class ConsoleUI {
     }
 
     private static String pill(boolean ok, String a, String b) {
-        // Verde/rojo
         return ok ? (ESC + "32m" + a + ESC + "0m") : (ESC + "31m" + b + ESC + "0m");
     }
 }

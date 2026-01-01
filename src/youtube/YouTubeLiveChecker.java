@@ -4,15 +4,15 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 public class YouTubeLiveChecker {
+
     private final String apiKey;
     private final String channelId;
-    private final HttpClient http = HttpClient.newHttpClient();
 
     public YouTubeLiveChecker(String apiKey, String channelId) {
         this.apiKey = apiKey;
@@ -20,33 +20,40 @@ public class YouTubeLiveChecker {
     }
 
     public LiveStatus checkLive() throws Exception {
-        // Busca eventos live del canal
-        String url = "https://www.googleapis.com/youtube/v3/search"
-                + "?part=snippet"
-                + "&channelId=" + channelId
-                + "&eventType=live"
-                + "&type=video"
-                + "&maxResults=1"
-                + "&key=" + apiKey;
 
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .GET()
-                .build();
+        String endpoint =
+                "https://www.googleapis.com/youtube/v3/search"
+                        + "?part=snippet"
+                        + "&channelId=" + channelId
+                        + "&eventType=live"
+                        + "&type=video"
+                        + "&maxResults=1"
+                        + "&key=" + apiKey;
 
-        HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+        HttpURLConnection con = (HttpURLConnection) new URL(endpoint).openConnection();
+        con.setRequestMethod("GET");
+        con.setConnectTimeout(10_000);
+        con.setReadTimeout(10_000);
 
-        JsonObject root = JsonParser.parseString(res.body()).getAsJsonObject();
+        int code = con.getResponseCode();
+        if (code != 200) {
+            throw new RuntimeException("YouTube API HTTP " + code);
+        }
+
+        JsonObject root = JsonParser.parseReader(
+                new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8)
+        ).getAsJsonObject();
+
         JsonArray items = root.getAsJsonArray("items");
-
         if (items == null || items.isEmpty()) {
             return new LiveStatus(false, null, null);
         }
 
         JsonObject first = items.get(0).getAsJsonObject();
-        String videoId = first.getAsJsonObject("id").get("videoId").getAsString();
-        String watchUrl = "https://www.youtube.com/watch?v=" + videoId;
+        JsonObject id = first.getAsJsonObject("id");
+        String videoId = id.get("videoId").getAsString();
 
+        String watchUrl = "https://www.youtube.com/watch?v=" + videoId;
         return new LiveStatus(true, videoId, watchUrl);
     }
 }
