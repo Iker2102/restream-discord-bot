@@ -1,6 +1,9 @@
 package bot;
 
+import bot.commands.CommandHandler;
+import bot.core.BotContext;
 import bot.discord.JdaFactory;
+import bot.events.EventHandler;
 import bot.modules.restream.RestreamModule;
 import net.dv8tion.jda.api.JDA;
 import util.Console;
@@ -21,10 +24,42 @@ public class Main {
         Console.section("Bot");
         Console.ok("DISCORD_TOKEN cargado");
 
+        // DEV: auto-regenera el services al guardar comandos
+        String dev = env.get("DEV_MODE");
+
+        if ("true".equalsIgnoreCase(dev) || "1".equals(dev)) {
+            try {
+                java.nio.file.Path commandsRoot = java.nio.file.Paths.get("src", "bot", "commands");
+                new tools.CommandServicesWatcher(commandsRoot).startInBackground();
+            } catch (Exception e) {
+                System.out.println("[Main] Watcher no pudo arrancar: " + e.getMessage());
+            }
+        }
+
+
+
         JDA jda = JdaFactory.build(cfg);
 
         jda.awaitReady();
         Console.ok("JDA listo y conectado");
+
+        BotContext ctx = new BotContext(jda);
+
+        CommandHandler commandHandler = new CommandHandler(ctx);
+        ctx.setCommandHandler(commandHandler);
+
+        commandHandler.loadFromServiceLoader();
+
+        EventHandler events = new EventHandler();
+        events.register(commandHandler);
+        events.bindTo(jda);
+
+        commandHandler.upsertSlashCommands(jda, env.get("DEV_GUILD_ID"));
+
+        /*
+        Cambiar el env.get a null cuando quiera hacer global
+         */
+
 
         RestreamModule restreamModule = null;
 

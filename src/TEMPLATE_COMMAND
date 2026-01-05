@@ -1,0 +1,26 @@
+package bot.commands.TU_CATEGORIA_AQUI;
+
+import bot.commands.Command;
+import bot.core.BotContext;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+
+public class TEMPLATE_Command implements Command {
+
+    @Override public String name() { return "nombrecomando"; }
+    @Override public String description() { return "Descripción corta del comando"; }
+
+    @Override
+    public void execute(SlashCommandInteractionEvent event, BotContext ctx) {
+        // Respuesta diferida para no pasarte del tiempo límite
+        event.deferReply(true).queue(); // true = ephemeral
+
+        try {
+            // --- TU LÓGICA ---
+            String msg = "✅ Hecho";
+
+            event.getHook().sendMessage(msg).queue();
+        } catch (Exception e) {
+            event.getHook().sendMessage("⚠️ Error: " + e.getMessage()).queue();
+        }
+    }
+}
