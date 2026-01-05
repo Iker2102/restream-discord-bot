@@ -5,6 +5,8 @@ import bot.core.BotContext;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
+import java.util.concurrent.TimeUnit;
+
 public class ClearButtonsListener extends ListenerAdapter {
 
     private final BotContext ctx;
@@ -17,20 +19,17 @@ public class ClearButtonsListener extends ListenerAdapter {
     public void onButtonInteraction(ButtonInteractionEvent event) {
         String id = event.getComponentId();
 
-        // Confirm
         if (id.startsWith(ClearCommand.confirmPrefix())) {
             handleConfirm(event, id);
             return;
         }
 
-        // Cancel
         if (id.startsWith(ClearCommand.cancelPrefix())) {
             handleCancel(event, id);
         }
     }
 
     private void handleCancel(ButtonInteractionEvent event, String id) {
-        // id: clear:cancel:<userId>
         String ownerId = id.substring(ClearCommand.cancelPrefix().length());
 
         if (!event.getUser().getId().equals(ownerId)) {
@@ -68,12 +67,9 @@ public class ClearButtonsListener extends ListenerAdapter {
 
         var channel = event.getChannel();
 
-        // En Discord solo se pueden borrar en bulk mensajes < 14 días.
-        // JDA se encarga, pero si hay antiguos, fallará. Lo avisamos.
         event.deferEdit().queue();
 
         channel.getHistory().retrievePast(amount).queue(messages -> {
-            // OJO: no se puede bulk delete si hay 0 o 1
             if (messages.isEmpty()) {
                 event.getHook().editOriginal("ℹ️ No había mensajes para borrar.").setComponents().queue();
                 return;
@@ -85,8 +81,7 @@ public class ClearButtonsListener extends ListenerAdapter {
                     .setComponents()
                     .queue();
 
-            // Opcional: borrar el “resultado” en 5s para no dejar rastro (ephemeral igual no molesta)
-            // event.getHook().deleteOriginal().queueAfter(5, TimeUnit.SECONDS);
+            event.getHook().deleteOriginal().queueAfter(5, TimeUnit.SECONDS);
 
         }, err -> {
             event.getHook().editOriginal("⚠️ Error borrando: " + err.getMessage())
