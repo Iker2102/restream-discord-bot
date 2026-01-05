@@ -8,8 +8,6 @@ import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInterac
 
 import java.util.*;
 
-import static net.dv8tion.jda.api.interactions.commands.build.Commands.slash;
-
 public class CommandHandler extends ListenerAdapter {
 
     private final BotContext ctx;
