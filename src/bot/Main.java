@@ -57,6 +57,7 @@ public class Main {
         EventHandler events = new EventHandler();
         events.register(commandHandler);
         events.register(new HelpUiListener(ctx));
+        events.register(new bot.commands.moderation.ClearButtonsListener(ctx));
 
         events.bindTo(jda);
 

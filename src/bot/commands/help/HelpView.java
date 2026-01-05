@@ -26,7 +26,7 @@ public final class HelpView {
         Map<String, List<Command>> visible = new LinkedHashMap<>();
         for (var e : byCat.entrySet()) {
             var list = e.getValue().stream()
-                    .filter(cmd -> cmd.permission().canExecute(member, ctx.ownerId()))
+                    .filter(cmd -> cmd.permission().canUserExecute(member, ctx.ownerId()))
                     .collect(Collectors.toList());
             if (!list.isEmpty()) visible.put(e.getKey(), list);
         }
