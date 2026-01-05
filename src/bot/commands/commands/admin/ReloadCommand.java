@@ -27,13 +27,12 @@ public class ReloadCommand implements Command {
     @Override
     public void execute(SlashCommandInteractionEvent event, BotContext ctx) {
 
-        // Seguridad
         if (!event.getUser().getId().equals(ctx.ownerId())) {
             event.reply("❌ No tienes permiso.").setEphemeral(true).queue();
             return;
         }
 
-        String mode = event.getSubcommandName(); // soft | hard | null
+        String mode = event.getSubcommandName();
 
         if (mode == null) {
             event.reply("⚠️ Usa `/reload soft` o `/reload hard`.")
@@ -45,7 +44,6 @@ public class ReloadCommand implements Command {
         event.deferReply(true).queue();
 
         try {
-            // Siempre regeneramos services
             GenerateCommandServices.generate();
 
             String guildId = ctx.devGuildId();
