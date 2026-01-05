@@ -5,6 +5,10 @@ import bot.commands.CommandPermission;
 import bot.core.BotContext;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import tools.GenerateCommandServices;
+import net.dv8tion.jda.api.interactions.commands.build.CommandData;
+import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+
+import static net.dv8tion.jda.api.interactions.commands.build.Commands.slash;
 
 public class ReloadCommand implements Command {
 
@@ -28,6 +32,15 @@ public class ReloadCommand implements Command {
     @Override
     public CommandPermission permission() {
         return CommandPermission.ownerOnly();
+    }
+
+    @Override
+    public CommandData data() {
+        return slash(name(), description())
+                .addSubcommands(
+                        new SubcommandData("soft", "Recarga comandos sin limpiar Discord"),
+                        new SubcommandData("hard", "Limpia y vuelve a subir los slash commands")
+                );
     }
 
     @Override

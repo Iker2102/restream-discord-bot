@@ -4,6 +4,7 @@ import bot.core.BotContext;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 
 import java.util.*;
 
@@ -72,32 +73,16 @@ public class CommandHandler extends ListenerAdapter {
 
     public void upsertSlashCommands(JDA jda, String guildIdOrNull) {
         var update = (guildIdOrNull != null && !guildIdOrNull.isBlank())
-                ? jda.getGuildById(guildIdOrNull).updateCommands()
+                ? Objects.requireNonNull(jda.getGuildById(guildIdOrNull), "Guild no encontrada: " + guildIdOrNull).updateCommands()
                 : jda.updateCommands();
 
-        update.addCommands(
-                net.dv8tion.jda.api.interactions.commands.build.Commands
-                        .slash("reload", "Recarga el sistema de comandos")
-                        .addSubcommands(
-                                new net.dv8tion.jda.api.interactions.commands.build.SubcommandData(
-                                        "soft", "Recarga comandos sin limpiar Discord"
-                                ),
-                                new net.dv8tion.jda.api.interactions.commands.build.SubcommandData(
-                                        "hard", "Limpia y vuelve a subir los slash commands"
-                                )
-                        )
-        );
-
         for (Command cmd : commands.values()) {
-            if (cmd.name().equals("reload")) continue;
-            update.addCommands(
-                    net.dv8tion.jda.api.interactions.commands.build.Commands
-                            .slash(cmd.name(), cmd.description())
-            );
+            update.addCommands(cmd.data());
         }
 
         update.queue();
     }
+
 
 
     public synchronized int reloadFromServiceLoader() {
@@ -143,6 +128,19 @@ public class CommandHandler extends ListenerAdapter {
 
         update.queue();
     }
+
+    @Override
+    public void onCommandAutoCompleteInteraction(CommandAutoCompleteInteractionEvent event) {
+        Command cmd = commands.get(event.getName().toLowerCase(Locale.ROOT));
+        if (cmd == null) return;
+
+        try {
+            cmd.onAutoComplete(event, ctx);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     /**
      * Hard reload:
