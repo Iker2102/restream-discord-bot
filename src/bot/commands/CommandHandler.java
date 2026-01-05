@@ -17,7 +17,7 @@ public class CommandHandler extends ListenerAdapter {
         this.ctx = ctx;
     }
 
-    public void loadFromServiceLoader() {
+    public int loadFromServiceLoader() {
         ServiceLoader<Command> loader = ServiceLoader.load(Command.class);
         int count = 0;
 
@@ -31,6 +31,7 @@ public class CommandHandler extends ListenerAdapter {
         } else {
             System.out.println("[CommandHandler] Comandos cargados: " + count);
         }
+        return count;
     }
 
     public void register(Command cmd) {
