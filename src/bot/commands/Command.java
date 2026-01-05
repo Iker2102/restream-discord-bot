@@ -21,6 +21,7 @@ public interface Command {
         return slash(name(), description());
     }
 
+
     default void onAutoComplete(CommandAutoCompleteInteractionEvent event, BotContext ctx) {}
 
     void execute(SlashCommandInteractionEvent event, BotContext ctx) throws Exception;

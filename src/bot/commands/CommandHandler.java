@@ -171,14 +171,26 @@ public class CommandHandler extends ListenerAdapter {
         }
 
         var member = event.getMember();
-        var permission = cmd.permission();
+        var perm = cmd.permission();
 
-        if (!permission.canExecute(member, ctx.ownerId())) {
-            event.reply(
-                    "🚫 **No tienes permisos para usar este comando**"
-            ).setEphemeral(true).queue();
+        if (!perm.canUserExecute(member, ctx.ownerId())) {
+            event.reply("🚫 No tienes permisos para usar este comando.")
+                    .setEphemeral(true)
+                    .queue();
             return;
         }
+
+        if (!perm.botHasNeeds(member)) {
+            String needed = perm.botPerms().isEmpty()
+                    ? "permisos necesarios"
+                    : perm.botPerms().toString();
+
+            event.reply("🤖 No puedo ejecutar esto porque me faltan permisos: **" + needed + "**")
+                    .setEphemeral(true)
+                    .queue();
+            return;
+        }
+
 
         try {
             cmd.execute(event, ctx);

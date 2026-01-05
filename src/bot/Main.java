@@ -1,6 +1,7 @@
 package bot;
 
 import bot.commands.CommandHandler;
+import bot.commands.help.HelpUiListener;
 import bot.core.BotContext;
 import bot.discord.JdaFactory;
 import bot.events.EventHandler;
@@ -55,6 +56,8 @@ public class Main {
 
         EventHandler events = new EventHandler();
         events.register(commandHandler);
+        events.register(new HelpUiListener(ctx));
+
         events.bindTo(jda);
 
         commandHandler.upsertSlashCommands(jda, devGuildId);
