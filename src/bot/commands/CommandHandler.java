@@ -167,22 +167,29 @@ public class CommandHandler extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+
         Command cmd = commands.get(event.getName().toLowerCase(Locale.ROOT));
         if (cmd == null) {
             event.reply("❌ Comando no registrado.").setEphemeral(true).queue();
             return;
         }
 
+        var member = event.getMember();
+        var permission = cmd.permission();
+
+        if (!permission.canExecute(member, ctx.ownerId())) {
+            event.reply(
+                    "🚫 **No tienes permisos para usar este comando**"
+            ).setEphemeral(true).queue();
+            return;
+        }
+
         try {
             cmd.execute(event, ctx);
         } catch (Exception e) {
-            event.reply("⚠️ Error: " + e.getMessage()).setEphemeral(true).queue();
             e.printStackTrace();
+            event.reply("⚠️ Error ejecutando el comando").setEphemeral(true).queue();
         }
-
-
-
-
-
     }
+
 }

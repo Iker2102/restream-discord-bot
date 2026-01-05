@@ -2,6 +2,7 @@ package bot.commands.commands.misc;
 
 import bot.commands.Command;
 import bot.commands.CommandHandler;
+import bot.commands.CommandPermission;
 import bot.core.BotContext;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 

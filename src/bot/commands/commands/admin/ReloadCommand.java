@@ -1,6 +1,7 @@
 package bot.commands.commands.admin;
 
 import bot.commands.Command;
+import bot.commands.CommandPermission;
 import bot.core.BotContext;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import tools.GenerateCommandServices;
@@ -25,12 +26,13 @@ public class ReloadCommand implements Command {
     }
 
     @Override
+    public CommandPermission permission() {
+        return CommandPermission.ownerOnly();
+    }
+
+    @Override
     public void execute(SlashCommandInteractionEvent event, BotContext ctx) {
 
-        if (!event.getUser().getId().equals(ctx.ownerId())) {
-            event.reply("❌ No tienes permiso.").setEphemeral(true).queue();
-            return;
-        }
 
         String mode = event.getSubcommandName();
 
