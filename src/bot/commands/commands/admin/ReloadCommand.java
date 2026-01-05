@@ -75,6 +75,8 @@ public class ReloadCommand implements Command {
 
             if (mode.equals("hard")) {
                 int count = ctx.commands().hardReloadAndUpsert(ctx.jda(), guildId);
+                ctx.components().reload();
+
 
                 ctx.jda().getGuildById(guildId).retrieveCommands().queue(cmds -> {
                     event.getHook().sendMessage(

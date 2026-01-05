@@ -2,6 +2,7 @@ package bot;
 
 import bot.commands.CommandHandler;
 import bot.commands.help.HelpUiListener;
+import bot.components.ComponentHandler;
 import bot.core.BotContext;
 import bot.discord.JdaFactory;
 import bot.events.EventHandler;
@@ -32,8 +33,12 @@ public class Main {
             try {
                 java.nio.file.Path commandsRoot = java.nio.file.Paths.get("src", "bot", "commands");
                 new tools.CommandServicesWatcher(commandsRoot).startInBackground();
+
+                var componentsRoot = java.nio.file.Paths.get("src", "bot", "components");
+                new tools.ComponentServicesWatcher(componentsRoot).startInBackground();
             } catch (Exception e) {
                 System.out.println("[Main] Watcher no pudo arrancar: " + e.getMessage());
+                System.out.println("[Main] Components watcher no pudo arrancar: " + e.getMessage());
             }
         }
 
@@ -56,8 +61,11 @@ public class Main {
 
         EventHandler events = new EventHandler();
         events.register(commandHandler);
-        events.register(new HelpUiListener(ctx));
-        events.register(new bot.commands.moderation.ClearButtonsListener(ctx));
+
+        ComponentHandler componentHandler = new ComponentHandler(ctx);
+        componentHandler.loadFromServiceLoader();
+
+        events.register(componentHandler);
 
         events.bindTo(jda);
 
