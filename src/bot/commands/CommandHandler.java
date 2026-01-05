@@ -59,11 +59,11 @@ public class CommandHandler extends ListenerAdapter {
     private String resolveCategory(Command c) {
         if (c.category() != null && !c.category().isBlank()) return c.category();
 
-        String pkg = c.getClass().getPackageName(); // ej: bot.commands.commands.util
+        String pkg = c.getClass().getPackageName();
         String base = "bot.commands.commands";
         if (!pkg.startsWith(base)) return "misc";
 
-        String rest = pkg.substring(base.length()); // "" o ".util"
+        String rest = pkg.substring(base.length());
         if (rest.isBlank()) return "misc";
 
         return rest.substring(1).replace('.', '/');
@@ -72,14 +72,98 @@ public class CommandHandler extends ListenerAdapter {
 
     public void upsertSlashCommands(JDA jda, String guildIdOrNull) {
         var update = (guildIdOrNull != null && !guildIdOrNull.isBlank())
+                ? jda.getGuildById(guildIdOrNull).updateCommands()
+                : jda.updateCommands();
+
+        update.addCommands(
+                net.dv8tion.jda.api.interactions.commands.build.Commands
+                        .slash("reload", "Recarga el sistema de comandos")
+                        .addSubcommands(
+                                new net.dv8tion.jda.api.interactions.commands.build.SubcommandData(
+                                        "soft", "Recarga comandos sin limpiar Discord"
+                                ),
+                                new net.dv8tion.jda.api.interactions.commands.build.SubcommandData(
+                                        "hard", "Limpia y vuelve a subir los slash commands"
+                                )
+                        )
+        );
+
+        for (Command cmd : commands.values()) {
+            if (cmd.name().equals("reload")) continue;
+            update.addCommands(
+                    net.dv8tion.jda.api.interactions.commands.build.Commands
+                            .slash(cmd.name(), cmd.description())
+            );
+        }
+
+        update.queue();
+    }
+
+
+    public synchronized int reloadFromServiceLoader() {
+        commands.clear();
+
+        ServiceLoader<Command> loader = ServiceLoader.load(Command.class, Command.class.getClassLoader());
+        loader.reload();
+
+        int count = 0;
+        for (Command cmd : loader) {
+            register(cmd);
+            count++;
+        }
+        System.out.println("[CommandHandler] Reload -> " + count + " comandos");
+        return count;
+    }
+
+
+    public synchronized int reloadAndUpsert(JDA jda, String guildIdOrNull) {
+        int count = reloadFromServiceLoader();
+        upsertSlashCommands(jda, guildIdOrNull);
+        return count;
+    }
+
+    public synchronized int reloadFromServiceLoaderHard() {
+        commands.clear();
+
+        ServiceLoader<Command> loader = ServiceLoader.load(Command.class, Command.class.getClassLoader());
+        loader.reload();
+
+        int count = 0;
+        for (Command cmd : loader) {
+            register(cmd);
+            count++;
+        }
+        return count;
+    }
+
+    public void clearSlashCommands(JDA jda, String guildIdOrNull) {
+        var update = (guildIdOrNull != null && !guildIdOrNull.isBlank())
                 ? Objects.requireNonNull(jda.getGuildById(guildIdOrNull), "Guild no encontrada: " + guildIdOrNull).updateCommands()
                 : jda.updateCommands();
 
-        for (Command cmd : commands.values()) {
-            update.addCommands(slash(cmd.name(), cmd.description()));
-        }
         update.queue();
     }
+
+    /**
+     * Hard reload:
+     * - limpia comandos en Discord
+     * - recarga comandos del ServiceLoader
+     * - los vuelve a subir
+     */
+    public synchronized int hardReloadAndUpsert(JDA jda, String guildIdOrNull) throws InterruptedException {
+
+        clearSlashCommands(jda, guildIdOrNull);
+
+        Thread.sleep(600);
+
+        int count = reloadFromServiceLoaderHard();
+
+        upsertSlashCommands(jda, guildIdOrNull);
+
+        return count;
+    }
+
+
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
@@ -95,6 +179,8 @@ public class CommandHandler extends ListenerAdapter {
             event.reply("⚠️ Error: " + e.getMessage()).setEphemeral(true).queue();
             e.printStackTrace();
         }
+
+
 
 
 

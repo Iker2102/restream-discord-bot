@@ -21,5 +21,5 @@ public class PingCommand implements Command {
         event.reply("Pong!").setEphemeral(true).queue();
     }
 
-    
+
 }

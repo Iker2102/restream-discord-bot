@@ -43,7 +43,10 @@ public class Main {
         jda.awaitReady();
         Console.ok("JDA listo y conectado");
 
-        BotContext ctx = new BotContext(jda);
+        String devGuildId = env.get("DEV_GUILD_ID");
+        String ownerId = env.require("OWNER_ID");
+
+        BotContext ctx = new BotContext(jda, devGuildId, ownerId);
 
         CommandHandler commandHandler = new CommandHandler(ctx);
         ctx.setCommandHandler(commandHandler);
@@ -54,8 +57,7 @@ public class Main {
         events.register(commandHandler);
         events.bindTo(jda);
 
-        commandHandler.upsertSlashCommands(jda, env.get("DEV_GUILD_ID"));
-
+        commandHandler.upsertSlashCommands(jda, devGuildId);
         /*
         Cambiar el env.get a null cuando quiera hacer global
          */
