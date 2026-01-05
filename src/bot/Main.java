@@ -1,33 +1,12 @@
 package bot;
 
+import bot.discord.JdaFactory;
+import bot.modules.restream.RestreamModule;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.requests.GatewayIntent;
-import net.dv8tion.jda.api.utils.cache.CacheFlag;
-import restream.RestreamManager;
-import restream.RestreamState;
 import util.Console;
 import util.Env;
-import util.ExponentialBackoff;
-import youtube.YouTubeLiveChecker;
-
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.EnumSet;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class Main {
-
-    private static final DateTimeFormatter T = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final String STATUS_PREFIX = "│ ";
-
-    private static volatile boolean tickerEnabled = true;
-
-    private static final ExponentialBackoff backoff = new ExponentialBackoff(5_000, 5 * 60_000);
-    private static volatile long nextAllowedStartMs = 0;
-
 
     public static void main(String[] args) throws Exception {
 
@@ -37,173 +16,34 @@ public class Main {
         System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
 
         Env env = Env.load(".env");
+        BotConfig cfg = BotConfig.from(env);
 
-        String discordToken = env.require("DISCORD_TOKEN");
-        String ytApiKey = env.require("YOUTUBE_API_KEY");
-        String channelId = env.require("YOUTUBE_CHANNEL_ID");
-        String youtubeRtmpUrl = env.require("YOUTUBE_RTMP_URL");
-        String youtubeStreamKey= env.require("YOUTUBE_STREAM_KEY");
-        String notifyUserId = env.require("NOTIFY_DISCORD_USER_ID");
-        String targetChannelId = env.require("YOUTUBE_TARGET_CHANNEL_ID");
+        Console.section("Bot");
+        Console.ok("DISCORD_TOKEN cargado");
 
-
-        YouTubeLiveChecker targetChecker = new YouTubeLiveChecker(ytApiKey, targetChannelId);
-
-        long notifyUserIdL = Long.parseLong(notifyUserId);
-        int pollSeconds        = Integer.parseInt(env.require("POLL_SECONDS"));
-
-        if (discordToken == null || ytApiKey == null || channelId == null || youtubeRtmpUrl == null || youtubeStreamKey == null) {
-            Console.section("Restream Bot");
-            Console.fail("Faltan variables de entorno. Necesitas:");
-            System.out.println("DISCORD_TOKEN, YOUTUBE_API_KEY, YOUTUBE_CHANNEL_ID, YOUTUBE_RTMP_URL, YOUTUBE_STREAM_KEY");
-            return;
-        }
-
-        Console.section("Restream Bot");
-        Console.ok("Variables cargadas");
-        Console.info("Inicializando módulos...");
-
-        RestreamState state = new RestreamState();
-        YouTubeLiveChecker checker = new YouTubeLiveChecker(ytApiKey, channelId);
-        RestreamManager restream = new RestreamManager(youtubeRtmpUrl, youtubeStreamKey, state);
-
-        Console.info("Conectando a Discord (JDA)...");
-
-        JDA jda = JDABuilder.createDefault(discordToken)
-                .enableIntents(EnumSet.allOf(GatewayIntent.class))
-                .enableCache(EnumSet.allOf(CacheFlag.class))
-                .addEventListeners(new CommandListener(state, restream))
-                .build();
+        JDA jda = JdaFactory.build(cfg);
 
         jda.awaitReady();
         Console.ok("JDA listo y conectado");
 
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+        RestreamModule restreamModule = null;
 
-        scheduler.scheduleAtFixedRate(() -> {
-            try {
-                var live = checker.checkLive();
-                boolean wasLive = state.isSourceLive;
-                state.isSourceLive = live.isLive();
+        if (cfg.restreamEnabled) {
+            Console.info("Restream: ENABLED");
+            restreamModule = new RestreamModule(cfg);
+            restreamModule.start(jda);
+        } else {
+            Console.info("Restream: DISABLED");
+        }
 
-                if (live.isLive()) {
-
-                    if (state.lastVideoId == null || !state.lastVideoId.equals(live.videoId())) {
-                        state.lastVideoId = live.videoId();
-                        logEvent("LIVE detectado: " + live.videoId());
-
-                        sendLiveDm(jda, notifyUserIdL, live.watchUrl());
-                    }
-
-                    if (!state.isRestreaming) {
-                        long now = System.currentTimeMillis();
-
-                        if (now < nextAllowedStartMs) {
-                            long wait = (nextAllowedStartMs - now) / 1000;
-                        } else {
-                            try {
-                                logEvent("Iniciando restream → YouTube RTMP");
-                                restream.startRestream(live.watchUrl());
-
-                                backoff.reset();
-                                nextAllowedStartMs = 0;
-
-                            } catch (Exception ex) {
-                                long delay = backoff.nextDelayMs();
-                                nextAllowedStartMs = now + delay;
-
-                                logEvent("Fallo arrancando restream (" + backoff.getFailures() + "): "
-                                        + ex.getMessage() + " | reintento en " + (delay / 1000) + "s");
-                            }
-                        }
-                    }
-
-                } else {
-                    state.lastVideoId = null;
-                    backoff.reset();
-                    nextAllowedStartMs = 0;
-
-                    if (state.isRestreaming) {
-                        logEvent("Parando restream (fuente OFF)");
-                        restream.stopRestream();
-                    }
-                }
-
-
-            } catch (Exception e) {
-                logEvent("ERROR en checkLive(): " + e.getMessage());
-            }
-        }, 0, pollSeconds, TimeUnit.SECONDS);
-
-        scheduler.scheduleAtFixedRate(() -> {
-            if (!tickerEnabled) return;
-            renderStatusLine(state, pollSeconds);
-        }, 0, 1, TimeUnit.SECONDS);
-
+        RestreamModule finalRestreamModule = restreamModule;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                tickerEnabled = false;
-                System.out.println();
                 Console.warn("Cerrando...");
-                try { restream.stopRestream(); } catch (Exception ignored) {}
+                try { if (finalRestreamModule != null) finalRestreamModule.stop(); } catch (Exception ignored) {}
                 try { jda.shutdownNow(); } catch (Exception ignored) {}
                 Console.ok("Apagado completo");
             } catch (Exception ignored) {}
         }));
     }
-
-    private static void renderStatusLine(RestreamState state, int pollSeconds) {
-        synchronized (CONSOLE_LOCK) {
-            String bo;
-            long now = System.currentTimeMillis();
-            String live = state.isSourceLive ? "ON " : "OFF";
-            String rs   = state.isRestreaming ? "ON " : "OFF";
-            String vid  = (state.lastVideoId == null ? "-" : state.lastVideoId);
-
-            if (nextAllowedStartMs > now) {
-                long waitSec = Math.max(1, (nextAllowedStartMs - now) / 1000);
-                bo = "Backoff:" + waitSec + "s";
-            } else {
-                bo = "Backoff:-";
-            }
-
-            String line = String.format(
-                    "│ %s | Live:%s  Restream:%s  Video:%s  %s  Poll:%ss",
-                    timeNow(), live, rs, vid, bo, pollSeconds
-            );
-
-            int pad = Math.max(0, 120 - line.length());
-            System.out.print("\r" + line + " ".repeat(pad));
-            System.out.flush();
-        }
-    }
-
-
-    private static void logEvent(String msg) {
-        synchronized (CONSOLE_LOCK) {
-            System.out.print("\r");
-
-            System.out.println("[" + timeNow() + "] " + msg);
-        }
-    }
-
-    private static void sendLiveDm(JDA jda, long userId, String watchUrl) {
-        jda.retrieveUserById(userId).queue(user -> {
-            user.openPrivateChannel().queue(channel -> {
-                channel.sendMessage(
-                        "🔴 **Directo iniciado**\n" +
-                                watchUrl
-                ).queue();
-            });
-        });
-    }
-
-
-
-    private static String timeNow() {
-        return LocalTime.now().format(T);
-    }
-
-    private static final Object CONSOLE_LOCK = new Object();
-
 }
