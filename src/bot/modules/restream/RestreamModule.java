@@ -2,6 +2,7 @@ package bot.modules.restream;
 
 import bot.BotConfig;
 import bot.CommandListener;
+import bot.core.BotContext;
 import net.dv8tion.jda.api.JDA;
 import restream.RestreamManager;
 import restream.RestreamState;
@@ -23,16 +24,25 @@ public class RestreamModule {
         jda.addEventListener(new CommandListener(state, manager));
     }
 
-    public void start(JDA jda) {
-        state = new RestreamState();
+    public void start(BotContext ctx) {
+        this.state = new RestreamState();
         var checker = new YouTubeLiveChecker(cfg.ytApiKey, cfg.sourceChannelId);
-        manager = new RestreamManager(cfg.youtubeRtmpUrl, cfg.youtubeStreamKey, state);
+        this.manager = new RestreamManager(cfg.youtubeRtmpUrl, cfg.youtubeStreamKey, state);
 
-        jda.addEventListener(new CommandListener(state, manager));
+        ctx.jda().addEventListener(new CommandListener(state, manager));
 
-        service = new RestreamService(jda, state, manager, checker, cfg.notifyDiscordUserId, cfg.pollSeconds);
+        this.service = new RestreamService(
+                ctx.jda(),
+                ctx,
+                state,
+                manager,
+                checker,
+                cfg.notifyDiscordUserId,
+                cfg.pollSeconds
+        );
         service.start();
     }
+
 
     public void stop() {
         if (service != null) service.stop();

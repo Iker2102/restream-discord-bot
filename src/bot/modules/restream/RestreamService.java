@@ -10,6 +10,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import bot.core.BotContext;
+
+
 public class RestreamService {
 
     private final JDA jda;
@@ -25,8 +28,14 @@ public class RestreamService {
     private volatile boolean tickerEnabled = true;
     private ScheduledExecutorService scheduler;
 
+    private final BotContext ctx;
+
+
+
+
     public RestreamService(
             JDA jda,
+            BotContext ctx,
             RestreamState state,
             RestreamManager restream,
             YouTubeLiveChecker checker,
@@ -34,12 +43,14 @@ public class RestreamService {
             int pollSeconds
     ) {
         this.jda = jda;
+        this.ctx = ctx;
         this.state = state;
         this.restream = restream;
         this.checker = checker;
         this.notifyUserId = notifyUserId;
         this.pollSeconds = pollSeconds;
     }
+
 
     public void start() {
         scheduler = Executors.newScheduledThreadPool(2);
@@ -93,10 +104,14 @@ public class RestreamService {
     }
 
     private void sendLiveDm(String watchUrl) {
+        boolean enabled = ctx.settings().getBool("restream.notify.enabled", true);
+        if (!enabled) return;
+
         jda.retrieveUserById(notifyUserId).queue(user ->
                 user.openPrivateChannel().queue(ch ->
                         ch.sendMessage("🔴 **Directo iniciado**\n" + watchUrl).queue()
                 )
         );
     }
+
 }

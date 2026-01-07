@@ -3,6 +3,8 @@ package bot.core;
 import bot.commands.CommandHandler;
 import net.dv8tion.jda.api.JDA;
 import bot.components.ComponentHandler;
+import java.nio.file.Paths;
+import bot.core.SettingsStore;
 
 
 public class BotContext {
@@ -13,6 +15,9 @@ public class BotContext {
 
     private CommandHandler commandHandler;
     private ComponentHandler componentHandler;
+
+    private final SettingsStore settings = new SettingsStore(Paths.get("data", "settings.properties"));
+
 
 
     public ComponentHandler components() {
@@ -27,6 +32,10 @@ public class BotContext {
         this.jda = jda;
         this.devGuildId = devGuildId;
         this.ownerId = ownerId;
+    }
+
+    public SettingsStore settings() {
+        return settings;
     }
 
     public JDA jda() { return jda; }

@@ -71,7 +71,6 @@ public class Main {
         Console.ok("Comandos cargados: " + cmdCount);
         Console.ok("Componentes cargados: " + compCount);
 
-        // 5) Register slash commands
         Console.section("Slash Commands");
         String target = (isDev ? devGuildId : null);
 
@@ -89,12 +88,11 @@ public class Main {
         if (cfg.restreamEnabled) {
             Console.ok("Restream: ENABLED");
             restreamModule = new RestreamModule(cfg);
-            restreamModule.start(jda);
+            restreamModule.start(ctx);
         } else {
             Console.info("Restream: DISABLED");
         }
 
-        // 7) Summary
         Console.section("Ready");
         Console.ok("Bot listo. Usa /help");
 
